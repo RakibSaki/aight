@@ -6,6 +6,7 @@ let sm = 1.989e30, m = 5.972e24;
 let maxv, pocot;
 let play = false, resetting = false, selected = 0;
 let phi = 0;
+let theta;
 
 let a, b, fd, ecc, T, foci, c, am, bm;
 let hyperbolic = false;
@@ -39,15 +40,32 @@ function setup() {
     });
 
     resetbutton = createButton('reset', 'reset');
-    playbutton.style('borderStyle', 'none');
+    resetbutton.style('borderStyle', 'none');
     resetbutton.style('fontSize', 18);
-    resetbutton.position(0, height - 27);
+    resetbutton.position(0, height - 23);
     resetbutton.mouseClicked(() => {
         resetting = !resetting;
+        resetbutton.html(resetting ? 'done' : 'reset');
         if (resetting) {
             play = false;
             time = 0;
         }
+    });
+    positionbutton = createButton('position', 'position');
+    positionbutton.mouseClicked( () => {
+        selected = 0;
+    });
+    velocitybutton = createButton('velocity', 'velocity');
+    velocitybutton.mouseClicked( () => {
+        selected = 1;
+    });
+    starmassbutton = createButton('starmass', 'starmass');
+    starmassbutton.mouseClicked( () => {
+        selected = 2;
+    });
+    planetmassbutton = createButton('planetmass', 'planetmass');
+    planetmassbutton.mouseClicked( () => {
+        selected = 3;
     });
 }
 
@@ -88,12 +106,18 @@ function mouseDragged() {
         } else if (selected == 1) {
             v = p5.Vector.add(svalue, p5.Vector.mult(del,vscale * 0.001));
         } else if (selected == 2) {
-            sm = sm + (del * 1e27);
+            sm = sm + (delx * 1e27);
             if (sm < 100) {
                 sm = 100;
             }
+            if ( (delx < 0 && mouseX-pmouseX > 0) || (delx > 0 && mouseX - pmouseX < 0) ) {
+                smouseX = mouseX;
+            }
         } else if (selected == 3) {
-            m = m + (del * 1e23 * 3);
+            m = m + (delx * 1e23 * 3);
+            if ( (delx < 0 && mouseX-pmouseX > 0) || (delx > 0 && mouseX - pmouseX < 0) ) {
+                smouseX = mouseX;
+            }
         }
         cale();
     }
@@ -146,7 +170,27 @@ function cale() {
         T = Math.sqrt((39.478417604 * a * a * a) / (G * sm));
         pocot = 1 / maxv;
     } else {
-        console.log("can't predict orbit ¯\_(<_<)_/¯");
+        console.log("yep, can do uWu");
+        let h = p5.Vector.cross(r, v).mag();
+        let mu = G * sm;
+        let E = (0.5*sq(v.mag())) - (mu / r.mag());
+        let bfac = sqrt(sq(mu) + (2*E*sq(h)));
+        let roots = [abs((-mu+bfac)/(2*E)), abs((-mu-bfac)/(2*E))];
+        a=(roots[0]+roots[1])/2;
+        fd = abs(roots[0]-roots[1])/2;
+        e = fd/a;
+        b=sqrt(sq(a)-sq(fd));
+        am=a+a;
+        bm=b+b;
+        theta=asin(r.y/r.mag());
+        if (p5.Vector.add(v, r).mag()>r.mag()) {
+            phi=theta-acos((sq(h)/(r.mag()*e*mu)) - (1/e));
+        } else {
+            phi=theta + acos((sq(h)/(r.mag()*e*mu)) - (1/e)) - TAU;
+        }
+        
+        foci = p5.Vector.mult(r, -(fd+fd)/r.mag());
+        c = p5.Vector.mult(foci, 0.5);
     }
 }
 
@@ -164,7 +208,7 @@ function draw() {
         move();
     }
     fill(255);
-    text(maxv, 50, 100);
+    text(phi, 50, 100);
     //buttons();
     varplay();
     stroke(200);
@@ -246,7 +290,13 @@ function orbit() {
 function planet() {
     fill('#1EF54E');
     noStroke();
-    ellipse(r.x / sscale, r.y / sscale, 12, 12);
+    translate(r.x / sscale, r.y / sscale);
+    ellipse(0, 0, 12, 12);
+    if (resetting && selected == 1) {
+        stroke(50, 50, 200);
+        line(0, 0, 10*v.x/vscale, 10*v.y/vscale);
+    }
+    translate(-r.x / sscale, -r.y / sscale);
 }
 
 function star() {
@@ -254,6 +304,7 @@ function star() {
     let wr = sw / 2;
     for (let ww = sw; ww >= wr; ww -= 2 / zoom) {
         let ratio = (sw - ww) / wr;
+        noStroke();
         fill(255 * ratio, 255 * ratio, 255 * ratio);
         ellipse(0, 0, ww, ww);
     }
